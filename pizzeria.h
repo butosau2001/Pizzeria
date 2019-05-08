@@ -39,8 +39,6 @@ typedef struct pizzeria_s
 
 pizzeria_t pizzeria;
 
-pthread_t cozinha;
-
 queue_t smart_deck;
 
 int aberto;
@@ -50,6 +48,7 @@ pthread_mutex_t mutex_mesa, pa_de_pizza;
 sem_t garcom, pizzaiolo, forno;
 sem_t garcom;
 sem_t pizzaiolo;
+sem_t mesas_sem;
 
 void pizzeria_init(int tam_forno, int n_pizzaiolos, int n_mesas,
                    int n_garcons, int tam_deck, int n_grupos);

@@ -22,23 +22,12 @@ void pizzeria_init(int tam_forno, int n_pizzaiolos, int n_mesas,
     sem_init(&garcom, 0, n_garcons);
     sem_init(&pizzaiolo, 0, n_pizzaiolos);
     sem_init(&forno, 0, tam_forno);
+    sem_init(&mesas_sem, 0, n_mesas);
 
     pthread_mutex_init(&mutex_mesa, NULL);
     pthread_mutex_init(&pa_de_pizza, NULL);
 
-    pthread_create(&cozinha, NULL, cozinha_func, NULL);
-
     queue_init(&smart_deck, tam_deck);
-}
-
-void *cozinha_func(void *args) {
-    while (aberto == 1) {
-        sem_wait(&pizzaiolo);
-        pedido_t *pedido = (pedido_t *) queue_wait(&smart_deck);
-        pizza_t * pizza = pedido_montar_pizza(pedido);
-
-    }
-    return NULL;
 }
 
 void pizzeria_close()
@@ -50,8 +39,12 @@ void pizzeria_destroy()
 {
     sem_destroy(&garcom);
     sem_destroy(&pizzaiolo);
+    sem_destroy(&forno);
+    sem_destroy(&mesas_sem);
+
     pthread_mutex_destroy(&pa_de_pizza);
     pthread_mutex_destroy(&mutex_mesa);
+
     queue_destroy(&smart_deck);
 }
 
@@ -62,12 +55,16 @@ void pizza_assada(pizza_t *pizza)
 int pegar_mesas(int tam_grupo)
 {
     int mesas = ceil(tam_grupo / 4);
-    if (pizzeria.n_mesas < mesas || aberto == 0)
-        return -1;
-    pthread_lock(&mutex_mesa);
-    pizzeria.n_mesas -= mesas;
-    pthread_unlock(&mutex_mesa);
-    pizzeria.n_mesas -= mesas;
+    int total;
+    if (aberto == 0) return -1;
+    pthread_mutex_lock(&mutex_mesa);
+    if (mesas < sem_getvalue(&mesas_sem, total)) {
+        mesas = 1;
+    } 
+    for (int i = 0; i < mesas; i++) {
+        sem_wait(&mesas_sem);
+    }
+    pthread_mutex_unlock(&mutex_mesa);
     return 0;
 }
 
@@ -76,8 +73,8 @@ void garcom_tchau(int tam_grupo)
     int mesas = ceil(tam_grupo / 4);
     pthread_lock(&mutex_mesa);
     pizzeria.n_mesas += mesas;
+    sem_post(&mesas_sem);
     pthread_unlock(&mutex_mesa);
-    pizzeria.n_mesas += mesas;
 }
 
 void garcom_chamar()

@@ -95,9 +95,10 @@ int pizza_pegar_fatia(pizza_t *pizza)
     if (pizza->fatias == 0) {
         return -1;
     }
-    pthread_lock(&pegador);
+    pthread_lock(&pizza->pegador);
     pizza->fatias--;
-    pthread_unlock(&pegador);
-    return 0;
-    return --pizza->fatias >= 0;
+    pthread_unlock(&pizza->pegador);
+    if (pizza->fatias >= 0) {
+        return 0;
+    }
 }

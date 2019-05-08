@@ -39,23 +39,17 @@ typedef struct pizzeria_s
 
 pizzeria_t pizzeria;
 
-<<<<<<< HEAD
 pthread_t cozinha;
 
-=======
->>>>>>> 4548944228e538d8d8ec5f3f5123c1506ce6ce08
 queue_t smart_deck;
 
 int aberto;
 
-<<<<<<< HEAD
 pthread_mutex_t mutex_mesa, pa_de_pizza;
 
 sem_t garcom, pizzaiolo, forno;
-=======
 sem_t garcom;
 sem_t pizzaiolo;
->>>>>>> 4548944228e538d8d8ec5f3f5123c1506ce6ce08
 
 void pizzeria_init(int tam_forno, int n_pizzaiolos, int n_mesas,
                    int n_garcons, int tam_deck, int n_grupos);
@@ -69,10 +63,7 @@ int pegar_mesas(int tam_grupo);
 void garcom_tchau(int tam_grupo);
 void garcom_chamar();
 void fazer_pedido(pedido_t *pedido);
-<<<<<<< HEAD
 void entregar_pedido(pedido_t *pedido);
-=======
->>>>>>> 4548944228e538d8d8ec5f3f5123c1506ce6ce08
 
 int pizza_pegar_fatia(pizza_t *pizza);
 

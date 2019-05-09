@@ -1,7 +1,7 @@
 #ifndef __PIZZERIA_H_
 #define __PIZZERIA_H_
 
-#include "./queue.h";
+#include "./queue.h"
 #include <semaphore.h>
 #include <pthread.h>
 
@@ -23,8 +23,9 @@ typedef struct pizza_s
     pedido_t *pedido;   ///< IMPORTANTE! NÃO REMOVER
     struct timespec ts; ///< IMPORTANTE! NÃO REMOVER
 
-    pthread_mutex_t pegador;
     /* você pode adicionar coisas aqui */
+    pthread_mutex_t pegador;
+    sem_t pronto;
 } pizza_t;
 
 typedef struct pizzeria_s
@@ -32,23 +33,18 @@ typedef struct pizzeria_s
     int tam_forno;
     int n_pizzaiolos;
     int n_mesas;
+    int n_mesas_disponiveis;
     int n_garcons;
     int tam_deck;
     int n_grupos;
 } pizzeria_t;
 
 pizzeria_t pizzeria;
-
 queue_t smart_deck;
-
+pthread_t *pizzaiolos;
+pthread_mutex_t mutex_mesa, mutex_n_mesas, pa_de_pizza, espaco_livre;
+sem_t garcom, pizzaiolos_disponiveis, forno, mesas_sem;
 int aberto;
-
-pthread_mutex_t mutex_mesa, pa_de_pizza;
-
-sem_t garcom, pizzaiolo, forno;
-sem_t garcom;
-sem_t pizzaiolo;
-sem_t mesas_sem;
 
 void pizzeria_init(int tam_forno, int n_pizzaiolos, int n_mesas,
                    int n_garcons, int tam_deck, int n_grupos);
@@ -62,7 +58,6 @@ int pegar_mesas(int tam_grupo);
 void garcom_tchau(int tam_grupo);
 void garcom_chamar();
 void fazer_pedido(pedido_t *pedido);
-void entregar_pedido(pedido_t *pedido);
 
 int pizza_pegar_fatia(pizza_t *pizza);
 

@@ -87,6 +87,7 @@ void pizzeria_close()
 {
     aberto = 0;
     while (1) {
+        printf("%d == %d\n", pizzeria.n_mesas, pizzeria.n_mesas_disponiveis);
         if (aberto == 0 && pizzeria.n_mesas == pizzeria.n_mesas_disponiveis) {
             for (int i = 0; i < pizzaiolo_ocupado; i++) {
                 queue_push_back(&smart_deck, (pedido_t *) NULL);
@@ -140,10 +141,11 @@ int pegar_mesas(int tam_grupo)
                 pthread_mutex_unlock(&mutex_mesa);
                 return 0;
             }
-        } else if (aberto == 0) {
+        } else {
             pthread_mutex_unlock(&mutex_mesa);
             return -1;
         }
+        pthread_mutex_unlock(&mutex_mesa);
     }
 }
 

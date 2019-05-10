@@ -40,11 +40,8 @@ int main(int argc, char **argv)
 
     pizzeria_close();
     pizzeria_destroy();
-    printf("estamos aqui demo\n");
     helper_destroy();
-    printf("passamos pela goiaba\n");
 
     //TODO: report de pizzas queimadas, clientes atendidos, etc.
-    printf("vai acabar o programa");
     return 0;
 }

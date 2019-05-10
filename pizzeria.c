@@ -18,12 +18,18 @@ void *garcom_func(void *arg) {
 
 void *pizzaiolo_func(void * arg) {
     while (1) {
-        pedido_t *pedido = (pedido_t *) queue_wait(&smart_deck);
-        sem_wait(&pizzaiolos_disponiveis);
-        pizza_t * pizza = pizzaiolo_montar_pizza(pedido);
+        pthread_mutex_lock(&mutex_pizzaiolo);
+        pizzaiolo_ocupado++;
+        printf("%d\n", pizzaiolo_ocupado);
+        pthread_mutex_unlock(&mutex_pizzaiolo);
+        printf("mesas disponiveis: %d\n", pizzeria.n_mesas_disponiveis);
+        sem_wait(&pedidos);
         if (aberto == 0 && pizzeria.n_mesas == pizzeria.n_mesas_disponiveis) {
             break;
         }
+        pedido_t *pedido = (pedido_t *) queue_wait(&smart_deck);
+        sem_wait(&pizzaiolos_disponiveis);
+        pizza_t *pizza = pizzaiolo_montar_pizza(pedido);
         sem_init(&pizza->pronto, 0, 0);
         sem_wait(&forno);
         pthread_mutex_lock(&pa_de_pizza);
@@ -60,11 +66,13 @@ void pizzeria_init(int tam_forno, int n_pizzaiolos, int n_mesas,
     sem_init(&forno, 0, tam_forno);
     sem_init(&mesas_sem, 0, n_mesas);
     sem_init(&pizzaiolos_disponiveis, 0, n_pizzaiolos);
+    sem_init(&pedidos, 0, 0);
 
     pthread_mutex_init(&mutex_mesa, NULL);
     pthread_mutex_init(&mutex_n_mesas, NULL);
     pthread_mutex_init(&pa_de_pizza, NULL);
     pthread_mutex_init(&espaco_livre, NULL);
+    pthread_mutex_init(&mutex_pizzaiolo, NULL);
 
     pizzaiolos = malloc(n_pizzaiolos * sizeof(pthread_t));
     
@@ -78,27 +86,35 @@ void pizzeria_init(int tam_forno, int n_pizzaiolos, int n_mesas,
 void pizzeria_close()
 {
     aberto = 0;
+    while (1) {
+        if (pizzeria.n_mesas == pizzeria.n_mesas_disponiveis) {
+            for (int i = 0; i < pizzaiolo_ocupado; i++) {
+                queue_push_back(&smart_deck, (pedido_t *) NULL);
+            }
+            break;
+        }
+    }
+
+    for (int i = 0; i < pizzeria.n_pizzaiolos; i++) {
+        pthread_join(pizzaiolos[i], NULL);
+    }
 }
 
 void pizzeria_destroy()
 {
-
-    for (int i = 0; i < pizzeria.n_pizzaiolos; i++) {
-       pthread_join(pizzaiolos[i], NULL);
-    }
-
     sem_destroy(&garcom);
     sem_destroy(&forno);
     sem_destroy(&mesas_sem);
     sem_destroy(&pizzaiolos_disponiveis);
+    sem_destroy(&pedidos);
 
     pthread_mutex_destroy(&espaco_livre);
     pthread_mutex_destroy(&mutex_n_mesas);
     pthread_mutex_destroy(&pa_de_pizza);
     pthread_mutex_destroy(&mutex_mesa);
+    pthread_mutex_destroy(&mutex_pizzaiolo);
 
     queue_destroy(&smart_deck);
-
 }
 
 void pizza_assada(pizza_t *pizza)
@@ -109,8 +125,7 @@ void pizza_assada(pizza_t *pizza)
 int pegar_mesas(int tam_grupo)
 {
     int mesas = ceil((double) tam_grupo / 4);
-    int erro = 0;
-    while (aberto == 1) {
+    while (1) {
         pthread_mutex_lock(&mutex_mesa);
         if (aberto == 1 && pizzeria.n_mesas_disponiveis >= mesas) {
             for (int i = 0; i < mesas; i++) {
@@ -119,28 +134,26 @@ int pegar_mesas(int tam_grupo)
             pthread_mutex_lock(&mutex_n_mesas);
             pizzeria.n_mesas_disponiveis -= mesas;
             pthread_mutex_unlock(&mutex_n_mesas);
+            pthread_mutex_unlock(&mutex_mesa);
+            return 0;
         } else {
             if (aberto == 0) {
-                erro = 1;
                 break;
             }
         }
-        pthread_mutex_unlock(&mutex_mesa);
     }
-    if (erro == 1) {
-        return -1;
-    }
-    return 0;
+    pthread_mutex_unlock(&mutex_mesa);
+    return -1;
 }
 
 void garcom_tchau(int tam_grupo)
 {
     int mesas = ceil(tam_grupo / 4);
-    sem_post(&garcom);
     pthread_mutex_lock(&mutex_mesa);
     pizzeria.n_mesas_disponiveis += mesas;
-    printf("saiu grupo\n");
+    printf("grupo saiu, %d mesas disponiveis", pizzeria.n_mesas_disponiveis);
     pthread_mutex_unlock(&mutex_mesa);
+    sem_post(&garcom);
     for (int i = 0; i < mesas; i++) {
         sem_post(&mesas_sem);
     }
@@ -154,6 +167,7 @@ void garcom_chamar()
 void fazer_pedido(pedido_t *pedido)
 {
     queue_push_back(&smart_deck, pedido);
+    sem_post(&pedidos);
 }
 
 int pizza_pegar_fatia(pizza_t *pizza)

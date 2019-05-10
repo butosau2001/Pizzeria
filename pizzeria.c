@@ -20,9 +20,7 @@ void *pizzaiolo_func(void * arg) {
     while (1) {
         pthread_mutex_lock(&mutex_pizzaiolo);
         pizzaiolo_ocupado++;
-        printf("%d\n", pizzaiolo_ocupado);
         pthread_mutex_unlock(&mutex_pizzaiolo);
-        printf("mesas disponiveis: %d\n", pizzeria.n_mesas_disponiveis);
         sem_wait(&pedidos);
         if (aberto == 0 && pizzeria.n_mesas == pizzeria.n_mesas_disponiveis) {
             break;
@@ -89,6 +87,7 @@ void pizzeria_close()
     while (1) {
         if (pizzeria.n_mesas == pizzeria.n_mesas_disponiveis) {
             for (int i = 0; i < pizzaiolo_ocupado; i++) {
+                printf("criando pedido fake");
                 queue_push_back(&smart_deck, (pedido_t *) NULL);
             }
             break;
@@ -127,33 +126,32 @@ int pegar_mesas(int tam_grupo)
     int mesas = ceil((double) tam_grupo / 4);
     while (1) {
         pthread_mutex_lock(&mutex_mesa);
-        if (aberto == 1 && pizzeria.n_mesas_disponiveis >= mesas) {
-            for (int i = 0; i < mesas; i++) {
-                sem_wait(&mesas_sem);
+        if (aberto == 1) {
+            if (mesas < pizzeria.n_mesas_disponiveis) {
+                for (int i = 0; i < mesas; i++) {
+                    sem_wait(&mesas_sem);
+                }
+                pthread_mutex_lock(&mutex_n_mesas);
+                pizzeria.n_mesas_disponiveis -= mesas;
+                pthread_mutex_unlock(&mutex_n_mesas);
+                pthread_mutex_unlock(&mutex_mesa);
+                return 0;
             }
-            pthread_mutex_lock(&mutex_n_mesas);
-            pizzeria.n_mesas_disponiveis -= mesas;
-            pthread_mutex_unlock(&mutex_n_mesas);
+        } else if (aberto == 0) {
             pthread_mutex_unlock(&mutex_mesa);
-            return 0;
-        } else {
-            if (aberto == 0) {
-                break;
-            }
+            return -1;
         }
     }
-    pthread_mutex_unlock(&mutex_mesa);
-    return -1;
 }
 
 void garcom_tchau(int tam_grupo)
 {
-    int mesas = ceil(tam_grupo / 4);
-    pthread_mutex_lock(&mutex_mesa);
-    pizzeria.n_mesas_disponiveis += mesas;
-    printf("grupo saiu, %d mesas disponiveis", pizzeria.n_mesas_disponiveis);
-    pthread_mutex_unlock(&mutex_mesa);
+    int mesas = ceil((double) tam_grupo / 4);
     sem_post(&garcom);
+    pthread_mutex_lock(&mutex_n_mesas);
+    pizzeria.n_mesas_disponiveis += mesas;
+    printf("mesas disponiveis: %d\n", pizzeria.n_mesas_disponiveis);
+    pthread_mutex_unlock(&mutex_n_mesas);
     for (int i = 0; i < mesas; i++) {
         sem_post(&mesas_sem);
     }

@@ -39,11 +39,13 @@ void *pizzaiolo_func(void * arg) {
         pthread_mutex_lock(&espaco_livre);
         pthread_mutex_init(&pizza->pegador, NULL);
         sem_post(&pizzaiolos_disponiveis);
+        pthread_mutex_lock(&mutex_pizzaiolo);
+        pizzaiolo_ocupado--;
+        pthread_mutex_unlock(&mutex_pizzaiolo);
         pthread_t garcom_thread;
         pthread_create(&garcom_thread, NULL, garcom_func, (void *) pizza);
         pthread_detach(garcom_thread);
     }
-    printf("saiu do while\n");
     pthread_exit(NULL);
 }
 
@@ -85,22 +87,22 @@ void pizzeria_close()
 {
     aberto = 0;
     while (1) {
-        if (pizzeria.n_mesas == pizzeria.n_mesas_disponiveis) {
+        if (aberto == 0 && pizzeria.n_mesas == pizzeria.n_mesas_disponiveis) {
             for (int i = 0; i < pizzaiolo_ocupado; i++) {
-                printf("criando pedido fake");
                 queue_push_back(&smart_deck, (pedido_t *) NULL);
+                sem_post(&pedidos);
             }
             break;
         }
-    }
-
-    for (int i = 0; i < pizzeria.n_pizzaiolos; i++) {
-        pthread_join(pizzaiolos[i], NULL);
     }
 }
 
 void pizzeria_destroy()
 {
+    for (int i = 0; i < pizzeria.n_pizzaiolos; i++) {
+        pthread_join(pizzaiolos[i], NULL);
+    }
+
     sem_destroy(&garcom);
     sem_destroy(&forno);
     sem_destroy(&mesas_sem);
@@ -114,6 +116,7 @@ void pizzeria_destroy()
     pthread_mutex_destroy(&mutex_pizzaiolo);
 
     queue_destroy(&smart_deck);
+
 }
 
 void pizza_assada(pizza_t *pizza)
@@ -150,7 +153,6 @@ void garcom_tchau(int tam_grupo)
     sem_post(&garcom);
     pthread_mutex_lock(&mutex_n_mesas);
     pizzeria.n_mesas_disponiveis += mesas;
-    printf("mesas disponiveis: %d\n", pizzeria.n_mesas_disponiveis);
     pthread_mutex_unlock(&mutex_n_mesas);
     for (int i = 0; i < mesas; i++) {
         sem_post(&mesas_sem);
